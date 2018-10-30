@@ -38,7 +38,7 @@
  */
 // To use a test branch (i.e. PR) until it lands to master
 // I.e. for testing library changes
-//@Library(value="pipeline-lib@your_branch") _
+@Library(value="pipeline-lib@debug") _
 
 def arch=""
 def sanitized_JOB_NAME = JOB_NAME.replaceAll('/', '-').toLowerCase()
@@ -131,6 +131,7 @@ pipeline {
                     }
                     steps {
                         sconsBuild clean: "_build.external${arch}"
+                        sh 'ls -l install/bin/'
                         stash name: 'CentOS-install', includes: 'install/**'
                         stash name: 'CentOS-build-vars', includes: ".build_vars${arch}.*"
                         stash name: 'CentOS-tests',
@@ -216,6 +217,7 @@ pipeline {
                     }
                     steps {
                         sconsBuild clean: "_build.external${arch}", COMPILER: "clang"
+                        sh 'ls -l install/bin/'
                     }
                     post {
                         always {
@@ -587,6 +589,7 @@ pipeline {
                                            rm -f build/src/control/src/github.com/daos-stack/daos/src/control
                                            mkdir -p build/src/control/src/github.com/daos-stack/daos/src/
                                            ln -s ../../../../../../../../src/control build/src/control/src/github.com/daos-stack/daos/src/control
+                                           ls -l install/bin/
                                            . ./.build_vars.sh
                                            DAOS_BASE=${SL_PREFIX%/install*}
                                            NODE=${NODELIST%%,*}
@@ -602,6 +605,7 @@ pipeline {
                                                fi
                                                trap 'set +e; set -x; sudo umount /mnt/daos' EXIT
                                                sudo mount -t tmpfs -o size=16G tmpfs /mnt/daos
+                                               df -h /mnt/daos
                                                sudo mkdir -p $DAOS_BASE
                                                trap 'set +e; set -x
                                                      cd
@@ -612,17 +616,23 @@ pipeline {
                                                      }' EXIT
                                                sudo mount -t nfs $HOSTNAME:$PWD $DAOS_BASE
                                                cd $DAOS_BASE
-                                               OLD_CI=false utils/run_test.sh
-                                               rm -rf run_test.sh/
-                                               mkdir run_test.sh/
-                                               [ -f /tmp/daos.log ] && mv /tmp/daos.log run_test.sh/
-                                               # servers can sometimes take a while to stop when the test is done
-                                               x=0
-                                               while [ \"\\\$x\" -lt \"10\" ] &&
-                                                     pgrep '(orterun|daos_server|daos_io_server)'; do
-                                                   sleep 1
-                                                   let x=\\\$x+1
-                                               done"''',
+                                               if OLD_CI=false bash -x utils/run_test.sh; then
+                                                   echo \"run_test.sh exited successfully with \\${PIPESTATUS[0]}\"
+                                                   rm -rf run_test.sh/
+                                                   mkdir run_test.sh/
+                                                   [ -f /tmp/daos.log ] && mv /tmp/daos.log run_test.sh/
+                                                   # servers can sometimes take a while to stop when the test is done
+                                                   x=0
+                                                   while [ \"\\\$x\" -lt \"10\" ] &&
+                                                         pgrep '(daos_server|daos_io_server)'; do
+                                                       sleep 1
+                                                       let x=\\\$x+1
+                                                   done
+                                               else
+                                                   rc=\\${PIPESTATUS[0]}
+                                                   echo \"run_test.sh exited failure with \\$rc\"
+                                                   exit \\$rc
+                                               fi"''',
                               junit_files: null
                     }
                     post {
@@ -669,7 +679,7 @@ pipeline {
                                            if [ -z "$test_tag" ]; then
                                                test_tag=regression,vm
                                            fi
-                                           ./ftest.sh "$test_tag" ''' + env.NODELIST,
+                                           bash -x ./ftest.sh "$test_tag" ''' + env.NODELIST + '; echo "rc: $?"',
                                 junit_files: "src/tests/ftest/avocado/job-results/*/*.xml"
                     }
                     post {
@@ -678,7 +688,8 @@ pipeline {
                                   mkdir Functional/
                                   ls *daos.log* >/dev/null && mv *daos.log* Functional/
                                   mv src/tests/ftest/avocado/job-results/* \
-                                     $(ls src/tests/ftest/*.stacktrace || true) Functional/'''
+                                     $(ls src/tests/ftest/*.stacktrace || true) Functional/
+                                  ls -l Functional/ || true'''
                             junit 'Functional/*/results.xml'
                             archiveArtifacts artifacts: 'Functional/**'
                         }
