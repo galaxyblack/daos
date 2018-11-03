@@ -151,13 +151,13 @@ class BadEvictTest(Test):
             pool.evict()
 
             if expected_result in ['FAIL']:
-                    self.fail("Test was expected to fail but it passed.\n")
+                self.fail("Test was expected to fail but it passed.\n")
 
-        except DaosApiError as e:
-            print(e)
+        except DaosApiError as excpn:
+            print(excpn)
             print(traceback.format_exc())
             if expected_result in ['PASS']:
-                    self.fail("Test was expected to pass but it failed.\n")
+                self.fail("Test was expected to pass but it failed.\n")
         finally:
             if pool is not None:
                 # if the test trashed some pool parameter, put it back the

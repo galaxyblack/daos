@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-  (C) Copyright 2018 Intel Corporation.
+  (C) Copyright 2018-2019 Intel Corporation.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import sys
 import os
 import json
 import subprocess
+import errno
 from avocado import Test
 
 sys.path.append('../util')
@@ -50,10 +51,9 @@ class CartSelfTest(Test):
                                "../../../../.build_vars.json")) as f:
             build_paths = json.load(f)
         self.basepath = os.path.normpath(build_paths['PREFIX']  + "/../")
-        tmp = build_paths['PREFIX'] + '/tmp'
 
         self.hostlist = self.params.get("test_machines", '/run/hosts/')
-        self.hostfile = WriteHostFile.WriteHostFile(self.hostlist, tmp)
+        self.hostfile = WriteHostFile.WriteHostFile(self.hostlist, self.workdir)
 
         context = DaosContext(build_paths['PREFIX'] + '/lib/')
         self.d_log = DaosLog(context)
@@ -89,8 +89,10 @@ class CartSelfTest(Test):
 
     def tearDown(self):
         try:
-            os.remove(self.hostfile)
             os.remove(self.uri_file)
+        except OSError as excpn:
+            if excpn.errno != errno.ENOENT:
+                raise
         finally:
             ServerUtils.stopServer(hosts=self.hostlist)
 
