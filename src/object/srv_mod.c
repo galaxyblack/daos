@@ -43,8 +43,6 @@ obj_mod_init(void)
 		srv_bypass_bulk = true;
 	}
 
-	dss_abt_pool_choose_cb_register(DAOS_OBJ_MODULE,
-					ds_obj_abt_pool_choose_cb);
 	return 0;
 }
 
@@ -89,7 +87,46 @@ obj_tls_fini(const struct dss_thread_local_storage *dtls,
 	if (tls->ot_echo_sgl.sg_iovs != NULL)
 		daos_sgl_fini(&tls->ot_echo_sgl, true);
 
+	if (tls->ot_sp)
+		srv_profile_destroy(tls->ot_sp);
+
 	D_FREE(tls);
+}
+
+static char *profile_op_names[] = {
+	"update_prep",
+	"update_local",
+	"update_end",
+	"update_repl",
+};
+
+static int
+ds_obj_profile_start(char *path)
+{
+	struct obj_tls *tls = obj_tls_get();
+	int rc;
+
+	if (tls->ot_sp)
+		return 0;
+
+	rc = srv_profile_start(&tls->ot_sp, path, profile_op_names);
+
+	return rc;
+}
+
+static int
+ds_obj_profile_stop(void)
+{
+	struct obj_tls *tls = obj_tls_get();
+	int	rc;
+
+	if (tls->ot_sp == NULL)
+		return 0;
+
+	rc = srv_profile_stop(tls->ot_sp);
+
+	tls->ot_sp = NULL;
+	return rc;
 }
 
 struct dss_module_key obj_module_key = {
@@ -97,6 +134,12 @@ struct dss_module_key obj_module_key = {
 	.dmk_index = -1,
 	.dmk_init = obj_tls_init,
 	.dmk_fini = obj_tls_fini,
+};
+
+static struct dss_module_ops ds_obj_mod_ops = {
+	.dms_abt_pool_choose_cb = ds_obj_abt_pool_choose_cb,
+	.dms_profile_start = ds_obj_profile_start,
+	.dms_profile_stop = ds_obj_profile_stop,
 };
 
 struct dss_module obj_module =  {
@@ -109,4 +152,5 @@ struct dss_module obj_module =  {
 	.sm_cli_count	= OBJ_PROTO_CLI_COUNT,
 	.sm_handlers	= obj_handlers,
 	.sm_key		= &obj_module_key,
+	.sm_mod_ops	= &ds_obj_mod_ops,
 };

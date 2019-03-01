@@ -116,9 +116,25 @@ enum_anchor_copy(daos_anchor_t *dst, daos_anchor_t *src)
 }
 
 extern struct dss_module_key obj_module_key;
+enum obj_profile_op {
+	UPDATE_PREP = 0,
+	LOCAL_UPDATE,
+	UPDATE_END,
+	UPDATE_REPLY,
+	UPDATE
+};
+
 struct obj_tls {
 	d_sg_list_t	ot_echo_sgl;
+	struct srv_profile	*ot_sp;
 };
+
+static inline struct obj_tls *
+obj_tls_get()
+{
+	return dss_module_key_get(dss_tls_get(), &obj_module_key);
+}
+
 
 int dc_obj_shard_open(struct dc_object *obj, daos_unit_oid_t id,
 		      unsigned int mode, struct dc_obj_shard *shard);

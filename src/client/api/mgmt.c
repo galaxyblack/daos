@@ -273,7 +273,6 @@ daos_pool_add_replicas(const uuid_t uuid, const char *group,
 
 	return dc_task_schedule(task, true);
 }
-
 int
 daos_pool_remove_replicas(const uuid_t uuid, const char *group,
 			  d_rank_list_t *svc, d_rank_list_t *targets,
@@ -298,3 +297,4 @@ daos_pool_remove_replicas(const uuid_t uuid, const char *group,
 
 	return dc_task_schedule(task, true);
 }
+

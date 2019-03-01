@@ -111,6 +111,15 @@ daos_rank_list_valid(const d_rank_list_t *rl)
 	return rl && rl->rl_ranks && rl->rl_nr;
 }
 
+static inline double
+daos_get_time(void)
+{
+	struct timeval	tv;
+
+	gettimeofday(&tv, NULL);
+	return (tv.tv_sec * 1000000.0 + tv.tv_usec); /* micro seconds */
+}
+
 /** Function table for combsort and binary search */
 typedef struct {
 	void    (*so_swap)(void *array, int a, int b);

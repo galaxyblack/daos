@@ -64,3 +64,50 @@ daos_rpc_send(crt_rpc_t *rpc, tse_task_t *task)
 
 	return rc;
 }
+
+struct daos_sync_rpc_status {
+	int completed;
+	int status;
+};
+
+static void 
+daos_sync_rpc_wait(crt_context_t *ctx, struct daos_sync_rpc_status *status)
+{
+	int rc = 0;
+
+	/* Wait on the event to complete */
+	while (!status->completed) {
+		rc = crt_progress(ctx, DAOS_EQ_WAIT, NULL, NULL);
+		if (rc)
+			break;
+	}
+
+	if (status->status == 0)
+		status->status = rc;
+}
+
+static void
+daos_sync_rpc_cb(const struct crt_cb_info *cb_info)
+{
+	struct daos_sync_rpc_status *status = cb_info->cci_arg;
+
+	status->completed = 1;
+	if (status->status == 0)
+		status->status = cb_info->cci_rc;
+}
+
+int
+daos_sync_rpc_send(crt_rpc_t *rpc)
+{
+	struct daos_sync_rpc_status status = { 0 };
+	int rc;
+
+	rc = crt_req_send(rpc, daos_sync_rpc_cb, &status);
+	if (rc != 0)
+		return rc;
+
+	daos_sync_rpc_wait(rpc->cr_ctx, &status); 
+	rc = status.status;
+
+	return rc;
+}
