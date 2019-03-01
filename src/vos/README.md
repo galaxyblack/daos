@@ -22,7 +22,6 @@ This document contains the following sections:
     - <a href="#723">Key in VOS KV Stores</a>
     - <a href="#724">Internal Data Structures</a>
 - <a href="#73">Byte Arrays</a>
-- <a href="#74">Document Stores</a>
 - <a href="#75">Epoch Based Operations</a>
     - <a href="#751">VOS Discard</a>
     - <a href="#752">VOS Aggregate</a>
@@ -138,10 +137,8 @@ Design of the object index and epoch index tables are similar to the container i
 The value of the object index table points to the location of the respective object structure.
 The value in case of the epoch index points to the object ID updated in that epoch.
 
-Objects can be either a key-value index data structure, byte-array index data structure, or a document store.
+Objects can be either a key-value index data structure or a byte-array index data structure.
 The type of object is identified from the object ID.
-A document store supports creation of a KV index with two-levels of keys, wherein the value can be either an atomic value or a byte-array value.
-Document stores is VOS is discussed in the previous <a href="#74">section</a>.
 
 VOS also maintains an index for container handle cookies.
 These cookies are created by DAOS-M to uniquely identify I/O from different process groups accessing container objects.
@@ -537,31 +534,6 @@ These operations are discussed in a following section (<a hfer="#75">Epoch Based
 
 <a id="74"></a>
 
-## Document Stores
-
-In addition to Key-value and Byte-array object, VOS would also offer a document store.
-The primary motivation of this type of object is to facilitate co-location of custom object metadata and object data within the same object.
-A document store is used in the construction of the document KV object in DAOS-SR (discussed in section 8.4.6).
-VOS would support two types of values for document store, one would be an atomic value, which can only be updated either completely or not, and the other would be a byte-array/partial value, where values can be updated partially.
-The existing internal data structures of KV objects and byte-array objects can be leveraged for designing such an object.
-The existing KV object design could be used to represent the keys, where each key points to a tree of values (atomic/partial).
-Depending on the type of value, a B+ tree for atomic value or an EV-tree for a byte-array value can be chosen for the {epoch.value} tree.
-
-<a id="7o"></a>
-
-<b>Layers of a Document store.
-Value of Key Tree form separate atomic/partial value trees</b>
-
-![../../doc/graph/Fig_020.png](../../doc/graph/Fig_020.png "Layers of a Document store.
-Value of Key Tree form separate atomic/partial value trees")
-
-A simple construction of a document store design is shown in the Figure above.
-In the case of both types of values, the epoch validity of the value tree must be exported to the attribute key tree and the distribution key tree.
-With this style of construction there is an inherent benefit for enumeration, as the epoch history of the keys is separated from the size of the parent key tree, reducing the size of the tree to be searched.
-
-
-<a id="751"></a>
-
 ## Epoch Based Operations
 
 Epochs provide a way for modifying VOS objects without destroying the history of updates/writes.
@@ -942,7 +914,7 @@ Which is 145MB/106   =  ~152bytes/record</li>
 </ol></li>
 </ol>
 
-While using document KV we would have additional cost involved in creating one root-tree node for every level on each insert.
+While using KV we would have additional cost involved in creating one root-tree node for every level on each insert.
 To keep the analysis simpler, let us assume one distribution key and many attribute keys.
 Each attribute key would have a separate value tree.
 The initial metadata cost is high but the overall update cost in the best case and the average case would still remain the same as in case of the single level b-tree.
